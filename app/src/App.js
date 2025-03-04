@@ -5,6 +5,7 @@ import {Layout} from "./components/Layout";
 import {Dashboard} from "./pages/Dashboard";
 import {AnalysisDetail} from "./pages/AnalysisDetail";
 import {Settings} from "./pages/Settings";
+import LandingPage from "./pages/LandingPage";
 
 const theme = createTheme({
   palette: {
@@ -13,14 +14,9 @@ const theme = createTheme({
   },
   typography: {
     fontFamily: [
-      "-apple-system",
-      "BlinkMacSystemFont",
-      '"Segoe UI"',
-      "Roboto",
-      '"Helvetica Neue"',
-      "Arial",
-      "sans-serif",
-    ].join(","),
+      '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto',
+      '"Helvetica Neue"', 'Arial', 'sans-serif',
+    ].join(','),
   },
 });
 
@@ -49,13 +45,24 @@ function App() {
       <ThemeProvider theme={theme}>
         <Router basename="/infosec">
           <RedirectHandler/>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Dashboard/>}/>
-              <Route path="/analysis/:id" element={<AnalysisDetail/>}/>
-              <Route path="/settings" element={<Settings/>}/>
-            </Routes>
-          </Layout>
+          <Routes>
+            <Route path="/" element={<LandingPage/>}/>
+            <Route path="/dashboard" element={
+              <Layout>
+                <Dashboard/>
+              </Layout>
+            }/>
+            <Route path="/analysis/:id" element={
+              <Layout>
+                <AnalysisDetail/>
+              </Layout>
+            }/>
+            <Route path="/settings" element={
+              <Layout>
+                <Settings/>
+              </Layout>
+            }/>
+          </Routes>
         </Router>
       </ThemeProvider>
   );

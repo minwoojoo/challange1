@@ -16,10 +16,17 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
-import { Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, Add as AddIcon, Logout as LogoutIcon } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 export const Settings = () => {
+  const navigate = useNavigate();
+  const [openLogoutDialog, setOpenLogoutDialog] = useState(false);
   const [profile, setProfile] = useState({
     displayName: '사용자',
     email: 'personal@gmail.com',
@@ -62,13 +69,82 @@ export const Settings = () => {
     setConnectedEmails(connectedEmails.filter(e => e.email !== email));
   };
 
+  const handleLogoutClick = () => {
+    setOpenLogoutDialog(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    // TODO: 로그아웃 로직 구현
+    setOpenLogoutDialog(false);
+    navigate('/');
+  };
+
+  const handleLogoutCancel = () => {
+    setOpenLogoutDialog(false);
+  };
+
   return (
     <Box>
-      <Typography variant="h4" gutterBottom> 사용자 설정 </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4"> 사용자 설정 </Typography>
+        <Button
+          variant="outlined"
+          color="error"
+          startIcon={<LogoutIcon />}
+          onClick={handleLogoutClick}
+          sx={{ borderRadius: '20px' }}
+        >
+          로그아웃
+        </Button>
+      </Box>
+
+      {/* 로그아웃 확인 다이얼로그 */}
+      <Dialog
+        open={openLogoutDialog}
+        onClose={handleLogoutCancel}
+        sx={{
+          '& .MuiDialog-paper': {
+            borderRadius: '12px',
+            minWidth: '300px',
+          },
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          로그아웃 확인
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            정말 로그아웃 하시겠습니까?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button 
+            onClick={handleLogoutCancel}
+            sx={{ 
+              borderRadius: '20px',
+              px: 3,
+              color: 'text.secondary'
+            }}
+          >
+            취소
+          </Button>
+          <Button 
+            onClick={handleLogoutConfirm}
+            variant="contained"
+            color="error"
+            sx={{ 
+              borderRadius: '20px',
+              px: 3
+            }}
+          >
+            로그아웃
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {showSuccess && (
         <Alert severity="success" sx={{ mb: 2 }}>
-          설정이 성공적으로 저장되었습니다.
+          프로필이 성공적으로 업데이트되었습니다.
         </Alert>
       )}
 
