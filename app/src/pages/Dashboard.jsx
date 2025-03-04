@@ -112,7 +112,7 @@ export const Dashboard = () => {
         <Grid item xs={12}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h4" gutterBottom>
-              PDF 악성 행위 분석 대시보드
+              분석 대시보드
             </Typography>
             {activeFilter !== 'all' && (
               <Button startIcon={<ClearIcon />} onClick={() => setActiveFilter('all')} color="primary">

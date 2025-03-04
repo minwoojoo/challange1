@@ -10,8 +10,8 @@ export const Layout = ({ children }) => {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="static">
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ cursor: 'pointer', flexGrow: 1 }} onClick={() => navigate('/')} >   
-            이메일 보안 시스템
+          <Typography variant="h6" component="div" sx={{ cursor: 'pointer', flexGrow: 1 }} onClick={() => navigate('/dashboard')} >   
+            PDF 피싱 분석 시스템
           </Typography>
           <IconButton color="inherit" onClick={() => navigate('/settings')} aria-label="설정">
             <SettingsIcon />
