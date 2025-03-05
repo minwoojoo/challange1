@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Auth 테스트</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .auth-container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        input {
+            padding: 8px;
+            margin: 5px 0;
+            width: 200px;
+            display: block;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        button:hover {
+            background-color: #357abd;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .error {
+            background-color: #ffe6e6;
+        }
+        .success {
+            background-color: #e6ffe6;
+        }
+    </style>
+</head>
+<body>
+    <h1>Firebase Auth 테스트</h1>
+    
+    <div class="auth-container">
+        <h2>Google 로그인</h2>
+        <button onclick="handleGoogleLogin()">Google 로그인</button>
+        <button onclick="handleLogout()">로그아웃</button>
+
+        <h2>이메일 분석 테스트</h2>
+        <div class="input-group">
+            <input type="text" id="email-subject" placeholder="이메일 제목">
+            <input type="email" id="email-sender" placeholder="보낸 사람 이메일">
+            <select id="email-dkim">
+                <option value="pass">DKIM: Pass</option>
+                <option value="fail">DKIM: Fail</option>
+            </select>
+            <select id="email-spf">
+                <option value="pass">SPF: Pass</option>
+                <option value="fail">SPF: Fail</option>
+            </select>
+            <select id="email-dmarc">
+                <option value="pass">DMARC: Pass</option>
+                <option value="fail">DMARC: Fail</option>
+            </select>
+            <select id="email-risk">
+                <option value="low">위험도: 낮음</option>
+                <option value="medium">위험도: 중간</option>
+                <option value="high">위험도: 높음</option>
+            </select>
+            <input type="text" id="attachment-id" placeholder="첨부파일 ID">
+            <input type="text" id="attachment-type" placeholder="첨부파일 타입 (예: pdf)">
+            <button onclick="handleEmailAnalysis()">이메일 분석 생성</button>
+        </div>
+    </div>
+
+    <div id="result" class="result"></div>
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+        import { 
+            getAuth, 
+            signInWithPopup, 
+            GoogleAuthProvider, 
+            signOut, 
+            onAuthStateChanged,
+            setPersistence,
+            browserLocalPersistence,
+            connectAuthEmulator
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            getDoc,
+            serverTimestamp,
+            connectFirestoreEmulator 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { 
+            getFunctions,
+            connectFunctionsEmulator 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDHBally8QZCMTQPTTyqhGQGM7MwNSpd7gw",
+            authDomain: "pdf-security.firebaseapp.com",
+            projectId: "pdf-security",
+            storageBucket: "pdf-security.firebasestorage.app",
+            messagingSenderId: "929096820439",
+            appId: "1:929096820439:web:a580aaf45ee7e6de1c7292",
+            measurementId: "G-SQRVWNDBJ7"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+
+        // Get Auth, Firestore, and Functions instances
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const functions = getFunctions(app);
+        
+        // 에뮬레이터 설정
+        if (location.hostname === 'localhost') {
+            try {
+                connectAuthEmulator(auth, 'http://localhost:9099');
+                connectFunctionsEmulator(functions, 'localhost', 5001);
+                connectFirestoreEmulator(db, 'localhost', 8081);
+                console.log('에뮬레이터 모드 활성화됨');
+            } catch (error) {
+                console.error('에뮬레이터 설정 실패:', error);
+            }
+        }
+
+        // 세션 지속성 설정
+        setPersistence(auth, browserLocalPersistence)
+            .catch((error) => {
+                console.error('세션 지속성 설정 실패:', error);
+            });
+
+        // 결과 표시 함수
+        function showResult(message, isError = false) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${isError ? 'error' : 'success'}`;
+            resultDiv.innerHTML = message;
+        }
+
+        // Google 로그인 처리
+        window.handleGoogleLogin = async function() {
+            try {
+                console.log('Google 로그인 시작');
+                
+                // 현재 로그인된 사용자가 있으면 로그아웃
+                if (auth.currentUser) {
+                    await signOut(auth);
+                }
+
+                // Google 제공자 설정
+                const provider = new GoogleAuthProvider();
+                
+                // 스코프 추가
+                provider.addScope('https://www.googleapis.com/auth/userinfo.email');
+                provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+                
+                // Google 로그인 팝업 열기
+                console.log('Google 로그인 팝업 열기 시도');
+                const result = await signInWithPopup(auth, provider);
+                console.log('Google 로그인 성공:', result.user);
+                
+                if (result.user) {
+                    // Firestore에 사용자 정보 저장
+                    await setDoc(doc(db, 'users', result.user.uid), {
+                        email: result.user.email,
+                        display_name: result.user.displayName,
+                        photo_url: result.user.photoURL,
+                        last_login_at: serverTimestamp()
+                    }, { merge: true });
+                    
+                    showResult(`
+                        <h3>로그인 성공!</h3>
+                        <p>이메일: ${result.user.email}</p>
+                        <p>이름: ${result.user.displayName}</p>
+                    `);
+                }
+            } catch (error) {
+                console.error('Google 로그인 오류:', error);
+                showResult(`로그인 실패: ${error.message}`, true);
+            }
+        }
+
+        // 로그아웃 처리
+        window.handleLogout = async function() {
+            try {
+                await signOut(auth);
+                showResult('로그아웃 성공!');
+            } catch (error) {
+                console.error('로그아웃 오류:', error);
+                showResult(`로그아웃 실패: ${error.message}`, true);
+            }
+        }
+
+        // 로그인 상태 변경 감지
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (userDoc.exists()) {
+                        showResult(`
+                            <h3>현재 로그인된 사용자</h3>
+                            <p>이메일: ${user.email}</p>
+                            <p>마지막 로그인: ${new Date(userDoc.data().last_login_at.toDate()).toLocaleString()}</p>
+                        `);
+                    }
+                } catch (error) {
+                    console.error('사용자 정보 조회 오류:', error);
+                }
+            } else {
+                showResult('로그인되지 않은 상태');
+            }
+        });
+
+        // 이메일 분석 처리
+        async function handleEmailAnalysis() {
+            try {
+                const subject = document.getElementById('email-subject').value;
+                const sender = document.getElementById('email-sender').value;
+                const dkim = document.getElementById('email-dkim').value;
+                const spf = document.getElementById('email-spf').value;
+                const dmarc = document.getElementById('email-dmarc').value;
+                const riskLevel = document.getElementById('email-risk').value;
+                const attachmentId = document.getElementById('attachment-id').value;
+                const attachmentType = document.getElementById('attachment-type').value;
+
+                if (!subject || !sender) {
+                    throw new Error('이메일 제목과 보낸 사람 이메일은 필수입니다.');
+                }
+
+                const emailData = {
+                    subject,
+                    sender,
+                    dkim,
+                    spf,
+                    dmarc,
+                    risk_level: riskLevel,
+                    attachment_ids: attachmentId ? [
+                        { id: attachmentId, type: attachmentType || 'pdf' }
+                    ] : []
+                };
+
+                const createEmailAnalysis = firebase.functions().httpsCallable('createEmailAnalysis');
+                const result = await createEmailAnalysis(emailData);
+                
+                showResult(`이메일 분석 생성 성공!\n${JSON.stringify(result.data, null, 2)}`);
+            } catch (error) {
+                showResult(`이메일 분석 생성 실패: ${error.message}`, true);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,36 +1,58 @@
 import React from 'react';
 import { Button } from '@mui/material';
+import { Google } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { signInWithPopup, GoogleAuthProvider, getAuth } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../firebaseConfig';  // auth와 db를 직접 import
 
 const StartButton = () => {
   const navigate = useNavigate();
 
-  const handleStart = () => {
-    // TODO: 구글 OAuth 로그인 구현
-    navigate('/dashboard');
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      
+      const auth = getAuth();
+      auth.useDeviceLanguage();
+      
+      const result = await signInWithPopup(auth, provider);
+      
+      // Firestore에 사용자 정보 저장
+      await setDoc(doc(db, 'users', result.user.uid), {
+        email: result.user.email,
+        display_name: result.user.displayName,
+        photo_url: result.user.photoURL,
+        last_login_at: serverTimestamp()
+      }, { merge: true });
+
+      // 로그인 성공 후 대시보드로 이동
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Google 로그인 오류:', error);
+    }
   };
 
   return (
     <Button
       variant="contained"
-      size="large"
-      onClick={handleStart}
+      startIcon={<Google />}
+      onClick={handleGoogleLogin}
       sx={{
         bgcolor: 'white',
-        color: 'primary.main',
-        borderRadius: '30px',
-        px: 4,
-        py: 1.5,
-        fontSize: '1.2rem',
-        textTransform: 'none',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-        transition: 'all 0.3s ease',
+        color: '#1976d2',
         '&:hover': {
           bgcolor: '#f5f5f5',
-          color: 'primary.main',
-          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
-          transform: 'scale(1.05)',
         },
+        px: 4,
+        py: 1.5,
+        fontSize: '1.1rem',
+        fontWeight: 'bold',
+        borderRadius: '30px',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
       }}
     >
       Sign in with Google

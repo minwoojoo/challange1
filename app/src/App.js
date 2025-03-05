@@ -6,6 +6,8 @@ import {Dashboard} from "./pages/Dashboard";
 import {AnalysisDetail} from "./pages/AnalysisDetail";
 import {Settings} from "./pages/Settings";
 import LandingPage from "./pages/LandingPage";
+import { AuthProvider } from './contexts/AuthContext';
+import './firebaseConfig';  // Firebase 초기화를 위해 import
 
 const theme = createTheme({
   palette: {
@@ -42,6 +44,7 @@ const RedirectHandler = () => {
 
 function App() {
   return (
+    <AuthProvider>
       <ThemeProvider theme={theme}>
         <Router basename="/infosec">
           <RedirectHandler/>
@@ -65,6 +68,7 @@ function App() {
           </Routes>
         </Router>
       </ThemeProvider>
+    </AuthProvider>
   );
 }
 

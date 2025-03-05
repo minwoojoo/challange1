@@ -1,0 +1,7 @@
+{
+  "google": {
+    "redirect_uri": "https://pdf-security.firebaseapp.com/__/auth/handler",
+    "client_secret": "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",
+    "client_id": "929096820439-ke0i7h2e83nuo1nshgiqr0oqhqvs3i6q.apps.googleusercontent.com"
+  }
+}
