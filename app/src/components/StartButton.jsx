@@ -4,7 +4,8 @@ import { Google } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { signInWithPopup, GoogleAuthProvider, getAuth } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../firebaseConfig';  // auth와 db를 직접 import
+import { db } from '../firebaseConfig';  // db를 직접 import
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const StartButton = () => {
   const navigate = useNavigate();

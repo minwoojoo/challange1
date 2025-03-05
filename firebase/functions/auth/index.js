@@ -1,3 +1,4 @@
+
 const functions = require('firebase-functions');
 const { db, admin } = require('../firebase-setup');
 const cors = require('cors')({ 
@@ -5,6 +6,10 @@ const cors = require('cors')({
   methods: ['POST', 'OPTIONS'],
   credentials: true
 });
+
+// Google People API 설정
+const { google } = require('googleapis');
+const OAuth2 = google.auth.OAuth2;
 
 // 사용자 로그인 시 호출되는 함수
 exports.onUserSignIn = functions.https.onCall(async (data, context) => {
@@ -92,5 +97,66 @@ exports.onUserSignOut = functions.https.onRequest((req, res) => {
       });
     }
   });
+});
+
+// 연동된 이메일 계정 조회 함수
+exports.getConnectedEmails = functions.https.onCall(async (data, context) => {
+  if (!context?.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      '사용자 인증이 필요합니다.'
+    );
+  }
+
+  try {
+    const user = context.auth.token;
+    
+    // Google OAuth2 클라이언트 설정
+    const oauth2Client = new OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+
+    // 사용자의 Google 액세스 토큰 설정
+    oauth2Client.setCredentials({
+      access_token: user.access_token,
+      refresh_token: user.refresh_token,
+      scope: 'https://www.googleapis.com/auth/userinfo.email',
+      token_type: 'Bearer',
+      expiry_date: user.exp * 1000
+    });
+
+    // People API 호출
+    const people = google.people({ version: 'v1', auth: oauth2Client });
+    const response = await people.people.get({
+      resourceName: 'people/me',
+      personFields: 'emailAddresses'
+    });
+
+    // 이메일 주소 추출
+    const emails = response.data.emailAddresses.map(email => ({
+      email: email.value,
+      type: email.type || '기타 이메일'
+    }));
+
+    // Firestore에 이메일 목록 저장
+    await db.collection('users').doc(context.auth.uid).update({
+      connectedEmails: emails,
+      lastEmailSync: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return {
+      success: true,
+      emails
+    };
+
+  } catch (error) {
+    console.error('연동된 이메일 조회 중 오류:', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      '연동된 이메일 조회 중 오류가 발생했습니다.'
+    );
+  }
 });
 

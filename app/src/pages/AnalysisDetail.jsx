@@ -455,7 +455,7 @@ export const AnalysisDetail = () => {
 
                         {/* 리다이렉트 검사 */}
                         <Box sx={{ mb: 3 }}>
-                        <Typography> 리다이렉트 검사 </Typography>
+                          <Typography>리다이렉트 검사</Typography>
                           <Box sx={{ ml: 4, mt: 2 }}>
                             {link.redirects.map((redirect, i) => (
                               <Box key={i} sx={{ 
@@ -483,7 +483,7 @@ export const AnalysisDetail = () => {
 
                         {/* 피싱 URL 데이터베이스 대조 */}
                         <Box sx={{ mb: 3 }}>
-                          <Typography> 피싱 URL 데이터베이스 대조 </Typography>
+                          <Typography>피싱 URL 데이터베이스 대조</Typography>
                           <Box sx={{ ml: 4, mt: 2 }}>
                             <Alert 
                               severity={link.isPhishingUrl ? "error" : "success"}
@@ -503,7 +503,7 @@ export const AnalysisDetail = () => {
 
                         {/* WHOIS 도메인 평판 조회 */}
                         <Box>
-                        <Typography> WHOIS 도메인 평판 조회 </Typography>
+                          <Typography>WHOIS 도메인 평판 조회</Typography>
                           <Box sx={{ ml: 4, mt: 2 }}>
                             <Paper sx={{ p: 2, bgcolor: 'background.paper' }}>
                               <Grid container spacing={2}>
