@@ -8,6 +8,7 @@ import {Settings} from "./pages/Settings";
 import LandingPage from "./pages/LandingPage";
 import { AuthProvider } from './contexts/AuthContext';
 import './firebaseConfig';  // Firebase 초기화를 위해 import
+import LoadingPage from "./pages/LoadingPage";
 
 const theme = createTheme({
   palette: {
@@ -50,6 +51,7 @@ function App() {
           <RedirectHandler/>
           <Routes>
             <Route path="/" element={<LandingPage/>}/>
+            <Route path="/loading" element={<LoadingPage/>}/>
             <Route path="/dashboard" element={
               <Layout>
                 <Dashboard/>

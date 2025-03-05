@@ -1,3 +1,5 @@
+// 이 파일은 아직 쓰이지 않았습니다
+
 
 const functions = require('firebase-functions');
 const { db, admin } = require('../firebase-setup');
@@ -99,7 +101,7 @@ exports.onUserSignOut = functions.https.onRequest((req, res) => {
   });
 });
 
-// 연동된 이메일 계정 조회 함수
+// 연동된 이메일 계정 조회 함수 
 exports.getConnectedEmails = functions.https.onCall(async (data, context) => {
   if (!context?.auth) {
     throw new functions.https.HttpsError(
