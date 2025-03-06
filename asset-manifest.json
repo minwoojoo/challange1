@@ -1,0 +1,10 @@
+{
+  "files": {
+    "main.js": "/infosec/static/js/main.2b4e1290.js",
+    "index.html": "/infosec/index.html",
+    "main.2b4e1290.js.map": "/infosec/static/js/main.2b4e1290.js.map"
+  },
+  "entrypoints": [
+    "static/js/main.2b4e1290.js"
+  ]
+}
