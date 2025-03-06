@@ -1,8 +1,11 @@
 {
-  "name":"info-sec",
+  "name": "info-sec",
   "private": true,
   "workspaces": [
     "apps",
     "firebase"
-  ]
+  ],
+  "dependencies": {
+    "@mui/icons-material": "^6.4.6"
+  }
 }
