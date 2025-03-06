@@ -2,7 +2,7 @@
 // 사용자 이름, 위험 파일 알림 같은 활성화 여부를 설정할 수 있고 관련 내용을 firestore에 추가합니다
 // 로그아웃 기능도 있습니다.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -62,6 +62,24 @@ export const Settings = () => {
   const [loadingEmails, setLoadingEmails] = useState(false);
   const functions = getFunctions();
 
+  const fetchConnectedEmails = useCallback(async () => {
+    try {
+      setLoadingEmails(true);
+      const getConnectedEmails = httpsCallable(functions, 'getConnectedEmails');
+      const result = await getConnectedEmails();
+      
+      if (result.data.success) {
+        setConnectedEmails(result.data.emails);
+      }
+    } catch (error) {
+      console.error("연동된 이메일 조회 중 오류:", error);
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setLoadingEmails(false);
+    }
+  }, [functions, setShowError]);
+
   useEffect(() => {
     if (currentUser) {
       // Google 계정의 기본 정보로 설정
@@ -101,7 +119,7 @@ export const Settings = () => {
       fetchUserData();
       fetchConnectedEmails();
     }
-  }, [currentUser]);
+  }, [currentUser, fetchConnectedEmails]);
 
   const handleProfileUpdate = async () => {
     try {
@@ -200,24 +218,6 @@ export const Settings = () => {
 
   const handleLogoutCancel = () => {
     setOpenLogoutDialog(false);
-  };
-
-  const fetchConnectedEmails = async () => {
-    try {
-      setLoadingEmails(true);
-      const getConnectedEmails = httpsCallable(functions, 'getConnectedEmails');
-      const result = await getConnectedEmails();
-      
-      if (result.data.success) {
-        setConnectedEmails(result.data.emails);
-      }
-    } catch (error) {
-      console.error("연동된 이메일 조회 중 오류:", error);
-      setShowError(true);
-      setTimeout(() => setShowError(false), 3000);
-    } finally {
-      setLoadingEmails(false);
-    }
   };
 
   return (

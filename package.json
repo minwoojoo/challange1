@@ -6,6 +6,6 @@
     "firebase"
   ],
   "dependencies": {
-    "@mui/icons-material": "^6.4.6"
+    "@mui/icons-material": "^6.4.7"
   }
 }
