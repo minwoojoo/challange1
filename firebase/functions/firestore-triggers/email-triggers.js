@@ -1,24 +1,19 @@
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
-const { db, admin } = require('../firebase-setup');
-const { 
-  emailAnalysisSchema, 
-  pdfAnalysisSchema,
-  EMAILS_COLLECTION,
-  PDF_ANALYSIS_SUBCOLLECTION 
-} = require('../schemas/emails');
+const { db, admin } = require("../firebase-setup");
+const { EMAILS_COLLECTION, PDF_ANALYSIS_SUBCOLLECTION, emailAnalysisSchema } = require("../constants");
 
 // 데이터 유효성 검증 함수
 const validateData = (data, schema) => {
   const errors = [];
-  
+
   for (const [key, value] of Object.entries(schema)) {
-    if (value === String && typeof data[key] !== 'string') {
+    if (value === String && typeof data[key] !== "string") {
       errors.push(`${key} must be a string`);
     }
-    if (value === Number && typeof data[key] !== 'number') {
+    if (value === Number && typeof data[key] !== "number") {
       errors.push(`${key} must be a number`);
     }
-    if (value === Boolean && typeof data[key] !== 'boolean') {
+    if (value === Boolean && typeof data[key] !== "boolean") {
       errors.push(`${key} must be a boolean`);
     }
     if (value === Date && !(data[key] instanceof Date)) {
@@ -43,7 +38,7 @@ exports.onEmailAnalysisChange = onDocumentWritten(`${EMAILS_COLLECTION}/{emailId
     }
 
     // PDF 분석이 있는 경우 서브컬렉션 처리
-    if (emailData.attachment_ids && emailData.attachment_ids.some(att => att.type === 'pdf')) {
+    if (emailData.attachment_ids && emailData.attachment_ids.some((att) => att.type === "pdf")) {
       const pdfAnalysisRef = event.data.after.ref.collection(PDF_ANALYSIS_SUBCOLLECTION);
       // PDF 분석 데이터 처리 로직 추가
     }
@@ -51,4 +46,4 @@ exports.onEmailAnalysisChange = onDocumentWritten(`${EMAILS_COLLECTION}/{emailId
 
   console.log(`Email document ${emailId} was modified`);
   return null;
-}); 
+});

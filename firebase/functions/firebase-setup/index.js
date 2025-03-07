@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+const admin = require("firebase-admin");
 
 // Firebase Admin 초기화
 if (!admin.apps.length) {
@@ -11,4 +11,4 @@ const db = admin.firestore();
 module.exports = {
   admin,
   db
-}; 
+};

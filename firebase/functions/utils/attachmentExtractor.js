@@ -25,7 +25,7 @@ exports.extractAttachments = async (emailData) => {
         };
 
         // ✅ PDF 내 악성 코드 검사
-        const {hasJavaScript, detectedScripts} = await analyzePDF(fileBuffer);
+        const { hasJavaScript, detectedScripts } = await analyzePDF(fileBuffer);
         const containsShellcode = await detectShellcode(fileBuffer);
 
         // ✅ 의심 요소 분석 (MockResult 구조에 맞춤)
@@ -79,10 +79,10 @@ exports.extractAttachments = async (emailData) => {
 // 📌 PDF 분석 함수 - JavaScript 코드 포함 여부 분석
 async function analyzePDF(pdfBuffer) {
   const pdfjs = await import("pdfjs-dist/build/pdf.mjs"); // ✅ 동적 import 사용 (ESM 문제 해결)
-  const pdf = await pdfjs.getDocument({data: pdfBuffer}).promise;
+  const pdf = await pdfjs.getDocument({ data: pdfBuffer }).promise;
 
   let hasJavaScript = false;
-  let detectedScripts = [];
+  const detectedScripts = [];
 
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
@@ -101,5 +101,5 @@ async function analyzePDF(pdfBuffer) {
     });
   }
 
-  return {hasJavaScript, detectedScripts};
+  return { hasJavaScript, detectedScripts };
 }

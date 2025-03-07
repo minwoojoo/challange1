@@ -1,32 +1,33 @@
-const functions = require('firebase-functions');
-const { db } = require('../firebase-setup');
-const axios = require('axios');
+const functions = require("firebase-functions");
+const { db } = require("../firebase-setup");
+const axios = require("axios");
+const admin = require("firebase-admin");
 
 // URL 리디렉션 추적 함수
 exports.trackRedirect = functions.https.onCall(async (data, context) => {
   try {
     const { url } = data;
     const redirectChain = [];
-    let currentUrl = url;
+    const currentUrl = url;
     let finalUrl = url;
 
     // 리디렉션 체인 추적
     try {
       const response = await axios.get(currentUrl, {
         maxRedirects: 10,
-        validateStatus: function (status) {
+        validateStatus: function(status) {
           return status >= 200 && status < 400;
         },
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
       });
 
       finalUrl = response.request.res.responseUrl || url;
-      
+
       // 리디렉션 체인 수집
       if (response.request.res.req._redirectable._redirectCount > 0) {
-        response.request.res.req._redirectable._redirects.forEach(redirect => {
+        response.request.res.req._redirectable._redirects.forEach((redirect) => {
           redirectChain.push({
             from: redirect.url,
             to: redirect.redirectUrl,
@@ -35,7 +36,7 @@ exports.trackRedirect = functions.https.onCall(async (data, context) => {
         });
       }
     } catch (error) {
-      console.error('Error following redirects:', error);
+      console.error("Error following redirects:", error);
     }
 
     // 단축 URL 서비스 확인
@@ -50,7 +51,7 @@ exports.trackRedirect = functions.https.onCall(async (data, context) => {
       checkedAt: admin.firestore.FieldValue.serverTimestamp()
     };
 
-    await db.collection('urlRedirects').add(redirectResult);
+    await db.collection("urlRedirects").add(redirectResult);
 
     // Safe Browsing API로 최종 URL 확인
     const safeBrowsingResult = await checkUrlWithSafeBrowsing(finalUrl);
@@ -63,24 +64,24 @@ exports.trackRedirect = functions.https.onCall(async (data, context) => {
       }
     };
   } catch (error) {
-    console.error('Error tracking URL redirect:', error);
-    throw new functions.https.HttpsError('internal', error.message);
+    console.error("Error tracking URL redirect:", error);
+    throw new functions.https.HttpsError("internal", error.message);
   }
 });
 
 // URL이 단축 URL 서비스인지 확인
 function checkIfUrlShortener(url) {
   const shortenerDomains = [
-    'bit.ly',
-    'tinyurl.com',
-    'goo.gl',
-    't.co',
-    'ow.ly',
-    'is.gd',
-    'buff.ly',
-    'adf.ly',
-    'bit.do',
-    'sh.st'
+    "bit.ly",
+    "tinyurl.com",
+    "goo.gl",
+    "t.co",
+    "ow.ly",
+    "is.gd",
+    "buff.ly",
+    "adf.ly",
+    "bit.do",
+    "sh.st"
   ];
 
   try {
@@ -94,18 +95,18 @@ function checkIfUrlShortener(url) {
 // Safe Browsing API로 URL 확인
 async function checkUrlWithSafeBrowsing(url) {
   const SAFE_BROWSING_API_KEY = functions.config().safebrowsing.key;
-  const SAFE_BROWSING_API_URL = 'https://safebrowsing.googleapis.com/v4/threatMatches:find';
+  const SAFE_BROWSING_API_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find";
 
   try {
     const response = await axios.post(`${SAFE_BROWSING_API_URL}?key=${SAFE_BROWSING_API_KEY}`, {
       client: {
-        clientId: 'your-client-name',
-        clientVersion: '1.0.0'
+        clientId: "your-client-name",
+        clientVersion: "1.0.0"
       },
       threatInfo: {
-        threatTypes: ['MALWARE', 'SOCIAL_ENGINEERING'],
-        platformTypes: ['ANY_PLATFORM'],
-        threatEntryTypes: ['URL'],
+        threatTypes: ["MALWARE", "SOCIAL_ENGINEERING"],
+        platformTypes: ["ANY_PLATFORM"],
+        threatEntryTypes: ["URL"],
         threatEntries: [{ url }]
       }
     });
@@ -115,7 +116,7 @@ async function checkUrlWithSafeBrowsing(url) {
       threats: response.data.matches || []
     };
   } catch (error) {
-    console.error('Error checking URL with Safe Browsing API:', error);
+    console.error("Error checking URL with Safe Browsing API:", error);
     return {
       isSafe: null,
       error: error.message
@@ -127,18 +128,18 @@ async function checkUrlWithSafeBrowsing(url) {
 exports.getRedirectHistory = functions.https.onCall(async (data, context) => {
   try {
     if (!context.auth) {
-      throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+      throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
     }
 
     const { limit = 10 } = data;
-    
-    const snapshot = await db.collection('urlRedirects')
-      .orderBy('checkedAt', 'desc')
+
+    const snapshot = await db.collection("urlRedirects")
+      .orderBy("checkedAt", "desc")
       .limit(limit)
       .get();
 
     const history = [];
-    snapshot.forEach(doc => {
+    snapshot.forEach((doc) => {
       history.push({
         id: doc.id,
         ...doc.data()
@@ -147,7 +148,30 @@ exports.getRedirectHistory = functions.https.onCall(async (data, context) => {
 
     return { success: true, history };
   } catch (error) {
-    console.error('Error fetching redirect history:', error);
-    throw new functions.https.HttpsError('internal', error.message);
+    console.error("Error fetching redirect history:", error);
+    throw new functions.https.HttpsError("internal", error.message);
   }
-}); 
+});
+
+// 긴 줄을 여러 줄로 나누어 작성
+const handleUrlRedirect = async (url, userId) => {
+  try {
+    const urlRef = admin.firestore()
+      .collection("urls")
+      .doc(userId)
+      .collection("user_urls");
+
+    const snapshot = await urlRef
+      .where("original_url", "==", url)
+      .limit(1)
+      .get();
+
+    if (!snapshot.empty) {
+      return snapshot.docs[0].data();
+    }
+    return null;
+  } catch (error) {
+    console.error("URL 조회 중 오류 발생:", error);
+    throw error;
+  }
+};

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Grid,
   Card,
@@ -15,6 +15,9 @@ import {
   Paper,
   IconButton,
   Tooltip,
+  CircularProgress,
+  Container,
+  Divider,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -22,7 +25,12 @@ import {
   Clear as ClearIcon,
   Assessment as AssessmentIcon,
   Close as CloseIcon,
+  Email,
 } from '@mui/icons-material';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { fetchEmails, getHello, analyzeEmails } from '../utils/api';
+import { toast } from 'react-hot-toast';
+import { auth } from "../firebaseConfig";
 
 const mockResults = [
   {
@@ -55,6 +63,183 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('all');
   const [showWeeklySummary, setShowWeeklySummary] = useState(true);
+  const [userInfo, setUserInfo] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [emails, setEmails] = useState([]);
+  const [emailCount, setEmailCount] = useState(0);
+
+  // 이메일 목록 새로고침 함수
+  const refreshEmailList = async () => {
+    try {
+      // TODO: 이메일 목록을 가져오는 API 호출 구현
+      // 현재는 mockResults를 사용
+      setEmails(mockResults);
+    } catch (error) {
+      console.error('이메일 목록 가져오기 실패:', error);
+      toast.error('이메일 목록을 가져오는데 실패했습니다.');
+    }
+  };
+
+  // 사용자 인증 상태 확인
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        console.log('사용자 인증됨:', user.email);
+        setUserInfo({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL
+        });
+      } else {
+        console.log('인증되지 않은 사용자, 로그인 페이지로 이동');
+        navigate('/', { replace: true });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate]);
+
+  // 컴포넌트 마운트 시 이메일 목록 가져오기
+  useEffect(() => {
+    if (userInfo) {
+      refreshEmailList();
+    }
+  }, [userInfo]);
+
+  // 새로운 이메일 분석 요청
+  const handleAnalyzeEmails = async () => {
+    if (!userInfo) {
+      console.log('사용자 정보 없음, 분석 중단');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await analyzeEmails();
+      
+      if (result.success) {
+        // 분석된 이메일 목록 업데이트
+        if (result.data?.processedEmails) {
+          const formattedEmails = result.data.processedEmails.map(email => ({
+            id: email.id,
+            subject: email.subject,
+            from: email.from,
+            to: email.to,
+            date: email.date,
+            securityLevel: email.risk_level,
+            riskReasons: email.risk_reasons
+          }));
+          setEmails(formattedEmails);
+        }
+        toast.success(result.message || '이메일 분석이 완료되었습니다.');
+      } else {
+        toast.info(result.message || '분석할 새로운 이메일이 없습니다.');
+      }
+    } catch (error) {
+      console.error('이메일 분석 중 오류:', error);
+      setError(error.message);
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFetchEmails = async () => {
+    setLoading(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        toast.error("로그인이 필요합니다.");
+        return;
+      }
+
+      console.log("이메일 가져오기 시작...");
+      const result = await fetchEmails();
+      console.log("이메일 가져오기 결과:", result);
+      
+      if (result.success && result.data?.messages) {
+        const formattedEmails = result.data.messages.map(email => ({
+          id: email.id,
+          subject: email.subject || '(제목 없음)',
+          from: email.from || '발신자 정보 없음',
+          to: email.to || '수신자 정보 없음',
+          date: formatDate(email.date) || '날짜 정보 없음',
+          snippet: email.snippet || ''
+        }));
+        
+        console.log("포맷된 이메일:", formattedEmails);
+        
+        if (formattedEmails.length > 0) {
+          setEmails(formattedEmails);
+          toast.success(`${formattedEmails.length}개의 이메일을 가져왔습니다.`);
+          // 이메일 분석 자동 시작
+          await handleAnalyzeEmails();
+        } else {
+          setEmails([]);
+          toast('가져올 이메일이 없습니다.', { icon: '📩' });
+        }
+      } else {
+        console.log("API 응답 실패:", result);
+        setEmails([]);
+        toast.error(result.message || "이메일 가져오기 실패");
+      }
+    } catch (error) {
+      console.error("이메일 가져오기 오류:", error);
+      toast.error(error.message || "이메일 가져오기 실패");
+      setEmails([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).replace(/\./g, '. ').replace(/ PM| AM/g, '');
+    } catch (error) {
+      return dateStr;
+    }
+  };
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography color="error">오류: {error}</Typography>
+        <Button 
+          variant="contained" 
+          onClick={() => window.location.reload()}
+          sx={{ mt: 2 }}
+        >
+          다시 시도
+        </Button>
+      </Box>
+    );
+  }
+
+  if (loading || !userInfo) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   // 통계 계산 함수들
   const calculateStatistics = (results) => {
@@ -107,21 +292,29 @@ export const Dashboard = () => {
   });
 
   return (
-    <Box>
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h4" gutterBottom>
-              분석 대시보드
-            </Typography>
-            {activeFilter !== 'all' && (
-              <Button startIcon={<ClearIcon />} onClick={() => setActiveFilter('all')} color="primary">
-                필터 초기화
-              </Button>
+    <Container maxWidth="lg">
+      <Box sx={{ mt: 4, mb: 4 }}>
+        <Box sx={{ mt: 3, display: "flex", gap: 2, alignItems: "flex-start", flexDirection: "column" }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<Email />}
+            onClick={handleFetchEmails}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <CircularProgress size={24} color="inherit" sx={{ mr: 1 }} />
+                이메일 가져오는 중...
+              </>
+            ) : (
+              "최근 이메일 가져오기"
             )}
-          </Box>
-        </Grid>
+          </Button>
+        </Box>
+      </Box>
 
+      <Grid container spacing={3}>
         {/* 7일간 검사 요약 */}
         <Grid item xs={12} md={4}>
           <Card>
@@ -267,9 +460,13 @@ export const Dashboard = () => {
                 {getFilteredResults().map((result) => (
                   <ListItem key={result.id} divider>
                     <ListItemText
-                      primary={result.fileName}
+                      primary={
+                        <Typography component="div">
+                          {result.fileName}
+                        </Typography>
+                      }
                       secondary={
-                        <React.Fragment>
+                        <Typography component="div" variant="body2" color="text.secondary">
                           <Typography component="span" variant="body2" color="text.primary">
                             발신자: {result.sender}
                           </Typography>
@@ -279,7 +476,7 @@ export const Dashboard = () => {
                           </Typography>
                           <br />
                           수신 날짜: {result.receivedAt.toLocaleString()}
-                        </React.Fragment>
+                        </Typography>
                       }
                     />
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -378,6 +575,6 @@ export const Dashboard = () => {
           </Fab>
         </Tooltip>
       )}
-    </Box>
+    </Container>
   );
 }; 

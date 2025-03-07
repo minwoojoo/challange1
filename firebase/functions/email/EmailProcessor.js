@@ -1,119 +1,126 @@
 const admin = require("firebase-admin");
-const {Timestamp} = require("firebase-admin/firestore")
-const {google} = require("googleapis");
-const {getGoogleAuth} = require("../utils/googleAuth");
-const {extractUrls} = require("../utils/urlExtractor");
-const {extractAttachments} = require("../utils/attachmentExtractor");
-const {randomCodeGenerator} = require("../utils/randomCodeGenerator");
+const { Timestamp } = require("firebase-admin/firestore");
+const { google } = require("googleapis");
+const { getGoogleAuth } = require("../utils/googleAuth");
+const { randomCodeGenerator } = require("../utils/randomCodeGenerator");
+
+// Firebase Admin 초기화
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: "pdf-security",
+    storageBucket: "pdf-security.appspot.com"
+  });
+}
 
 const db = admin.firestore();
 
 class EmailProcessor {
-  constructor(accessToken, refreshToken, email) {
+  constructor(accessToken, refreshToken = null, email) {
     this.accessToken = accessToken;
     this.refreshToken = refreshToken;
     this.email = email;
     this.auth = getGoogleAuth(accessToken, refreshToken);
-    this.gmail = google.gmail({version: "v1", auth: this.auth});
+    this.gmail = google.gmail({ version: "v1", auth: this.auth });
   }
 
   async fetchUser() {
-    const userRef = db.collection("users").where("email", "==", this.email);
-    const snapshot = await userRef.get();
-    if (snapshot.empty) {
-      throw new Error("사용자를 찾을 수 없습니다.");
-    }
+    try {
+      const userRef = db.collection("users").where("email", "==", this.email);
+      const snapshot = await userRef.get();
 
-    return {
-      user: snapshot.docs[0].data(),
-      userId: snapshot.docs[0].id,
-    };
+      if (snapshot.empty) {
+        console.log("사용자 정보 없음, 기본 정보 생성");
+        const newUserRef = db.collection("users").doc();
+        const userData = {
+          email: this.email,
+          created_at: Timestamp.now(),
+          last_login: Timestamp.now(),
+          last_analyzed_at: null
+        };
+
+        await newUserRef.set(userData);
+
+        return {
+          user: userData,
+          userId: newUserRef.id
+        };
+      }
+
+      return {
+        user: snapshot.docs[0].data(),
+        userId: snapshot.docs[0].id,
+      };
+    } catch (error) {
+      console.error("사용자 정보 조회 중 오류:", error);
+      throw error;
+    }
   }
 
   async fetchEmails(lastAnalyzedAt) {
-    const query = lastAnalyzedAt ? `after:${lastAnalyzedAt}` : "";
-    const response = await this.gmail.users.messages.list({
-      userId: "me",
-      q: query,
-      maxResults: 5,
-    });
+    try {
+      const query = lastAnalyzedAt ? `after:${lastAnalyzedAt}` : "";
+      const response = await this.gmail.users.messages.list({
+        userId: "me",
+        q: query,
+        maxResults: 5,
+      });
 
-    return response.data.messages || [];
+      return response.data.messages || [];
+    } catch (error) {
+      console.error("이메일 목록 조회 중 오류:", error);
+      return [];
+    }
   }
 
   async processEmails(messages, userId) {
-    let batch = db.batch();
+    try {
+      console.log("이메일 처리 시작:", messages.length, "개의 메시지");
+      const batch = db.batch();
+      let processedCount = 0;
 
-    for await (const message of messages) {
-      const emailData = (
-          await this.gmail.users.messages.get({
+      for (const message of messages) {
+        try {
+          const emailData = await this.gmail.users.messages.get({
             userId: "me",
             id: message.id,
             format: "full",
-          })
-      ).data;
+          });
 
-      const emailId = randomCodeGenerator("email_");
+          const emailId = randomCodeGenerator("email_");
+          const headers = emailData.data.payload.headers;
+          const subject = headers.find((h) => h.name.toLowerCase() === "subject")?.value || "(제목 없음)";
 
-      // 📌 URL & 첨부파일 분석을 병렬 처리하여 성능 향상
-      const [urls, attachments] = await Promise.all([
-        extractUrls(emailData),
-        extractAttachments(emailData),
-      ]);
+          console.log("이메일 처리 중:", { id: emailId, subject });
 
-      // 📌 Firestore 저장
-      const emailRef = db.collection("emails").doc(emailId);
-      batch.set(emailRef, {
-        id: emailId,
-        user_id: userId,
-        sender: emailData.payload.headers.find((h) => h.name === "From")?.value || "Unknown",
-        receiver: emailData.payload.headers.find((h) => h.name === "To")?.value || "Unknown",
-        subject: emailData.payload.headers.find((h) => h.name === "Subject")?.value || "No Subject",
-        received_at: Math.floor(emailData.internalDate / 1000),
-        analyzed: true,
-        analyzed_at: Timestamp.now(),
-        has_risky_attachment: attachments.some((att) => att.securityLevel === "dangerous"),
-        has_risky_url: urls.some((url) => url.isPhishingUrl === true),
-        attachment_data: attachments,
-        url_data: urls.map(({address, domain, ipAddress, ipInfo, isPhishingUrl}) => ({
-          address,
-          domain,
-          ipAddress,
-          ipInfo,
-          isPhishingUrl,
-        })), // WHOIS 관련 정보 제거
-        email_risk: this.assessEmailRisk(attachments, urls),
-      });
+          const emailRef = db.collection("emails").doc(emailId);
+          batch.set(emailRef, {
+            id: emailId,
+            user_id: userId,
+            subject: subject,
+            processed_at: Timestamp.now(),
+            gmail_message_id: message.id
+          });
+
+          processedCount++;
+        } catch (error) {
+          console.error("단일 이메일 처리 중 오류:", error);
+          continue;
+        }
+      }
+
+      if (processedCount > 0) {
+        await batch.commit();
+        await db.collection("users").doc(userId).update({
+          last_analyzed_at: Timestamp.now()
+        });
+        console.log("이메일 처리 완료:", processedCount, "개 저장됨");
+      }
+
+      return processedCount;
+    } catch (error) {
+      console.error("이메일 일괄 처리 중 오류:", error);
+      throw error;
     }
-
-    // ✅ 배치 커밋 + last_analysis_at 업데이트
-    await batch.commit();
-    await db.collection("users").doc(userId).update(
-        {last_analysis_at: Timestamp.now()});
-  }
-
-  /**
-   * 📌 이메일의 전체 위험 수준을 평가하는 함수
-   * @param {Array} attachments - 분석된 첨부파일 리스트
-   * @param {Array} urls - 분석된 URL 리스트
-   * @returns {string} 위험 수준 ("safe" | "suspicious" | "dangerous")
-   */
-  assessEmailRisk(attachments, urls) {
-    let riskLevel = "safe";
-
-    // 1️⃣ 첨부파일 분석 결과 반영
-    if (attachments.some((att) => att.securityLevel === "dangerous")) {
-      riskLevel = "dangerous";
-    } else if (attachments.some((att) => att.securityLevel === "suspicious")) {
-      riskLevel = "suspicious";
-    }
-
-    // 2️⃣ URL 분석 결과 반영
-    if (urls.some((url) => url.isPhishingUrl === true)) {
-      riskLevel = "dangerous";
-    }
-
-    return riskLevel;
   }
 }
 

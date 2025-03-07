@@ -3,26 +3,26 @@ import { Box, Container, Typography, Paper, List, ListItem, ListItemIcon, ListIt
 import { Security, BugReport, Assessment, Shield } from '@mui/icons-material';
 import StartButton from '../components/StartButton';
 
-const features = [
-  {
-    icon: <Security sx={{ color: 'white' }} />,
-    text: '보안 위협에 대한 이메일 분석'
-  },
-  {
-    icon: <BugReport sx={{ color: 'white' }} />,
-    text: '의심스러운 PDF 및 URL 감지'
-  },
-  {
-    icon: <Assessment sx={{ color: 'white' }} />,
-    text: '즉각적인 보안 보고서 받기'
-  },
-  {
-    icon: <Shield sx={{ color: 'white' }} />,
-    text: '피싱 공격으로부터 보호'
-  }
-];
-
 const LandingPage = () => {
+  const features = [
+    {
+      icon: <Security sx={{ color: 'white' }} />,
+      text: '보안 위협에 대한 이메일 분석'
+    },
+    {
+      icon: <BugReport sx={{ color: 'white' }} />,
+      text: '의심스러운 PDF 및 URL 감지'
+    },
+    {
+      icon: <Assessment sx={{ color: 'white' }} />,
+      text: '즉각적인 보안 보고서 받기'
+    },
+    {
+      icon: <Shield sx={{ color: 'white' }} />,
+      text: '피싱 공격으로부터 보호'
+    }
+  ];
+
   return (
     <Box
       sx={{
@@ -71,7 +71,7 @@ const LandingPage = () => {
                   <ListItemIcon sx={{ minWidth: 40 }}>
                     {feature.icon}
                   </ListItemIcon>
-                  <ListItemText 
+                  <ListItemText
                     primary={feature.text}
                     sx={{
                       '& .MuiListItemText-primary': {

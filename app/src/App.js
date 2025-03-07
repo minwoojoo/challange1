@@ -47,7 +47,7 @@ function App() {
   return (
     <AuthProvider>
       <ThemeProvider theme={theme}>
-        <Router basename="/infosec">
+        <Router>
           <RedirectHandler/>
           <Routes>
             <Route path="/" element={<LandingPage/>}/>

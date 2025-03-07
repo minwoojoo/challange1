@@ -98,23 +98,23 @@ exports.extractUrls = async (emailData) => {
   const urls = extractUrlsFromText(emailBody);
 
   return await Promise.all(
-      urls.map(async (url) => {
-        try {
-          const domain = new URL(url).hostname;
-          const ipAddress = await getIPAddress(domain);
-          const ipInfo = ipAddress ? await getIPInfo(ipAddress) : null;
+    urls.map(async (url) => {
+      try {
+        const domain = new URL(url).hostname;
+        const ipAddress = await getIPAddress(domain);
+        const ipInfo = ipAddress ? await getIPInfo(ipAddress) : null;
 
-          return {
-            address: url,
-            domain,
-            ipAddress,
-            ipInfo,
-            isPhishingUrl: false, // 🚨 피싱 사이트 여부는 별도 데이터베이스 연동 필요
-          };
-        } catch (error) {
-          console.error(`❌ Error processing URL: ${url} - ${error.message}`);
-          return {address: url, error: "Invalid URL"};
-        }
-      })
+        return {
+          address: url,
+          domain,
+          ipAddress,
+          ipInfo,
+          isPhishingUrl: false, // 🚨 피싱 사이트 여부는 별도 데이터베이스 연동 필요
+        };
+      } catch (error) {
+        console.error(`❌ Error processing URL: ${url} - ${error.message}`);
+        return { address: url, error: "Invalid URL" };
+      }
+    })
   );
 };

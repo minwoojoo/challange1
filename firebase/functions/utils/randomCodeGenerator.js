@@ -6,4 +6,4 @@ exports.randomCodeGenerator = (prefix) => {
     result += characters.charAt(Math.floor(Math.random() * characters.length));
   }
   return result;
-}
+};

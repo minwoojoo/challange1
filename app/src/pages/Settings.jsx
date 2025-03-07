@@ -2,7 +2,7 @@
 // 사용자 이름, 위험 파일 알림 같은 활성화 여부를 설정할 수 있고 관련 내용을 firestore에 추가합니다
 // 로그아웃 기능도 있습니다.
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -13,26 +13,20 @@ import {
   Button,
   Switch,
   FormControlLabel,
-  Divider,
   Alert,
   List,
   ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  CircularProgress,
 } from '@mui/material';
-import { Delete as DeleteIcon, Add as AddIcon, Logout as LogoutIcon, Refresh as RefreshIcon } from '@mui/icons-material';
+import { Logout as LogoutIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebaseConfig';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
 
@@ -51,34 +45,8 @@ export const Settings = () => {
     deleteDangerousFiles: true,
   });
 
-  const [connectedEmails, setConnectedEmails] = useState([
-    { email: 'company@gmail.com', type: '회사 이메일' },
-    { email: 'personal@gmail.com', type: '개인 이메일' },
-  ]);
-
-  const [newEmail, setNewEmail] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
-  const [loadingEmails, setLoadingEmails] = useState(false);
-  const functions = getFunctions();
-
-  const fetchConnectedEmails = useCallback(async () => {
-    try {
-      setLoadingEmails(true);
-      const getConnectedEmails = httpsCallable(functions, 'getConnectedEmails');
-      const result = await getConnectedEmails();
-      
-      if (result.data.success) {
-        setConnectedEmails(result.data.emails);
-      }
-    } catch (error) {
-      console.error("연동된 이메일 조회 중 오류:", error);
-      setShowError(true);
-      setTimeout(() => setShowError(false), 3000);
-    } finally {
-      setLoadingEmails(false);
-    }
-  }, [functions, setShowError]);
 
   useEffect(() => {
     if (currentUser) {
@@ -107,9 +75,6 @@ export const Settings = () => {
                 emailNotifications: userData.notifications.emailNotifications ?? true
               });
             }
-            if (userData.connectedEmails) {
-              setConnectedEmails(userData.connectedEmails);
-            }
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -117,9 +82,8 @@ export const Settings = () => {
       };
 
       fetchUserData();
-      fetchConnectedEmails();
     }
-  }, [currentUser, fetchConnectedEmails]);
+  }, [currentUser]);
 
   const handleProfileUpdate = async () => {
     try {
@@ -189,17 +153,6 @@ export const Settings = () => {
     }
   };
 
-  const handleEmailAdd = () => {
-    if (newEmail) {
-      setConnectedEmails([...connectedEmails, { email: newEmail, type: '추가 이메일' }]);
-      setNewEmail('');
-    }
-  };
-
-  const handleEmailDelete = (email) => {
-    setConnectedEmails(connectedEmails.filter(e => e.email !== email));
-  };
-
   const handleLogoutClick = () => {
     setOpenLogoutDialog(true);
   };
@@ -223,7 +176,7 @@ export const Settings = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4"> 사용자 설정 </Typography>
+        <Typography variant="h4" component="h1"> 사용자 설정 </Typography>
         <Button
           variant="outlined"
           color="error"
@@ -249,7 +202,7 @@ export const Settings = () => {
           로그아웃 확인
         </DialogTitle>
         <DialogContent>
-          <Typography>
+          <Typography component="div">
             정말 로그아웃 하시겠습니까?
           </Typography>
         </DialogContent>
@@ -294,7 +247,7 @@ export const Settings = () => {
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>프로필 설정</Typography>
+              <Typography variant="h6" component="h2" gutterBottom>프로필 설정</Typography>
               
               <Box sx={{ mb: 2, textAlign: 'center' }}>
                 <Box
@@ -361,7 +314,7 @@ export const Settings = () => {
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom> 활성화 여부 </Typography>
+              <Typography variant="h6" component="h2" gutterBottom> 활성화 여부 </Typography>
               <List>
                 <ListItem>
                   <FormControlLabel
@@ -386,61 +339,6 @@ export const Settings = () => {
                   />
                 </ListItem>
               </List>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6"> 이메일 연동 설정 </Typography>
-                <Button
-                  startIcon={<RefreshIcon />}
-                  onClick={fetchConnectedEmails}
-                  disabled={loadingEmails}
-                >
-                  {loadingEmails ? '새로고침 중...' : '새로고침'}
-                </Button>
-              </Box>
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  연동된 이메일 계정
-                </Typography>
-                {loadingEmails ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                    <CircularProgress size={24} />
-                  </Box>
-                ) : (
-                  <List>
-                    {connectedEmails.map((email) => (
-                      <ListItem key={email.email}>
-                        <ListItemText
-                          primary={email.email}
-                          secondary={email.type}
-                        />
-                        <ListItemSecondaryAction>
-                          <IconButton
-                            edge="end"
-                            aria-label="delete"
-                            onClick={() => handleEmailDelete(email.email)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </Box>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                <TextField label="새 이메일 추가" value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)} sx={{ flexGrow: 1 }} />
-                <Button variant="contained" startIcon={<AddIcon />} onClick={handleEmailAdd} sx={{ mt: 1 }}>
-                  추가
-                </Button>
-              </Box>
             </CardContent>
           </Card>
         </Grid>
