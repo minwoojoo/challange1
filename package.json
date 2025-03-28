@@ -2,7 +2,7 @@
   "name": "info-sec",
   "private": true,
   "workspaces": [
-    "apps",
+    "apps", 
     "firebase"
   ],
   "dependencies": {

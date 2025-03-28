@@ -8,7 +8,7 @@ service cloud.firestore {
 
     // 사용자 컬렉션 규칙
     match /users/{userId} {
-      allow read: if isSignedIn();  // 개발을 위해 모든 로그인 사용자가 읽기 가능
+      allow read: if isSignedIn();  // 모든 로그인 사용자가 읽기 가능
       allow write: if isSignedIn() && request.auth.uid == userId;  // 자신의 문서만 수정 가능
     }
 

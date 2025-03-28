@@ -2,11 +2,16 @@
 // 구글 로그인 버튼을 누르면 구글 로그인 페이지로 이동하고, 로그인 성공 후 대시보드로 이동합니다.
 // 로그인 정보는 firestore에 저장됩니다.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, CircularProgress } from '@mui/material';
 import { Google } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup,
+  onAuthStateChanged
+} from 'firebase/auth';
 import { toast } from 'react-hot-toast';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
@@ -38,20 +43,54 @@ const StartButton = () => {
   const [loading, setLoading] = useState(false);
   const auth = getAuth();
 
+  // 인증 상태 변경 감지
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        console.log('사용자 로그인 감지:', user.uid);
+        
+        try {
+          // 이미 로그인된 사용자의 토큰 정보 확인
+          const token = localStorage.getItem(GMAIL_TOKEN_KEY);
+          
+          if (!token) {
+            // 토큰이 없는 경우 로그인 프로세스를 다시 진행
+            console.log('토큰 정보가 없습니다. 로그인 프로세스를 다시 진행합니다.');
+          } else {
+            console.log('기존 토큰 정보가 있습니다. 대시보드로 이동합니다.');
+            navigate('/dashboard');
+          }
+        } catch (error) {
+          console.error('인증 상태 처리 오류:', error);
+        }
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [auth, navigate]);
+
   const handleLogin = async () => {
     try {
       setLoading(true);
-      console.clear();
-      console.log('로그인 시작');
+      console.log('Google 로그인 시작...');
       
-      // Google 로그인 공급자 설정 - Gmail API 스코프 추가
+      // Google 로그인 공급자 설정
       const provider = new GoogleAuthProvider();
+      
+      // Gmail API 스코프 추가
       provider.addScope('https://www.googleapis.com/auth/gmail.readonly');
       
-      console.log('Google 로그인 팝업 시작 - Gmail 스코프 포함');
+      // 항상 계정 선택 화면을 표시하도록 설정
+      provider.setCustomParameters({
+        prompt: 'select_account',
+        access_type: 'offline'
+      });
+      
+      console.log('Google 로그인 팝업 열기...');
       
       // 팝업으로 인증 진행
       const result = await signInWithPopup(auth, provider);
+      
       console.log('로그인 성공:', result.user.uid);
       
       // Gmail API 액세스 토큰 가져오기
@@ -75,11 +114,13 @@ const StartButton = () => {
       navigate('/dashboard');
     } catch (error) {
       console.error('로그인 오류:', error);
+      
       if (error.code === 'auth/popup-closed-by-user') {
         toast.error('로그인 창이 닫혔습니다. 다시 시도해주세요.');
+      } else if (error.code === 'auth/popup-blocked') {
+        toast.error('팝업이 차단되었습니다. 팝업 차단을 해제하고 다시 시도해주세요.');
       } else if (error.code === 'auth/internal-error') {
         toast.error('내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-        console.error('상세 오류 정보:', error.message);
       } else {
         toast.error(`로그인 오류: ${error.message}`);
       }
